@@ -1,33 +1,26 @@
 # Developer Setup & Build Guide
 
-This was created with the help of Google Gemini.
-
-This guide explains how to set up the file structure, configure the customizable assets (UFO and Corgi), and compile the screensaver project from source using the command-line tools.
+This guide explains how the project is structured, how custom assets can be added, and how to compile the screensaver bundle from source.
 
 ---
 
 ## 🛠️ Project File Structure
 
-To build successfully, your local repository directory must be arranged exactly like this:
+The repository is structured as follows:
 
 - 📂 **Root Folder**
   - 📄 `README.md` (General user installation manual)
   - 📄 `LICENSE` (MIT Open-Source text)
   - 📄 `.gitignore` (Filters out local compilation junk files)
-  - 📄 `PongScreensaver.xcodeproj` (Main Xcode project system engine launcher)
+  - 📁 `PongScreensaver.xcodeproj/` (Xcode project package containing `project.pbxproj`)
   - 📂 **app/** (Primary source logic folder)
-    - 📄 `README.md` (This README file)
+    - 📄 `README.md` (This developer guide)
     - 📄 `Info.plist` (Plug-in architecture map declaring the Principal class to macOS)
-    - 📄 `PongScreensaverView.swift` (Primary game engine and non-trail canvas logic)
-    - 📄 `PongSettingsController.swift` (Preference dropdown management logic)
+    - 📄 `PongScreensaverView.swift` (Primary game engine and rendering logic)
+    - 📄 `PongSettingsController.swift` (Preference sheet controller logic)
     - 📄 `PongSettingsView.xib` (The visual user settings window layout)
-    - 📂 `Assets.xcassets/` (Graphic storage container)
-      - 📂 `ufo_icon.imageset/` (Custom UFO sprite mapping folder)
-        - 📄 `Contents.json` (Xcode asset mapping schema metadata)
-        - 🖼️ `ufo.png` (Your transparent UFO graphic file)
-      - 📂 `corgi_icon.imageset/` (Custom Corgi sprite mapping folder)
-        - 📄 `Contents.json` (Xcode asset mapping schema metadata)
-        - 🖼️ `corgi.png` (Your transparent Corgi puppy graphic file)
+
+> **Note on Custom Assets:** The screensaver has built-in vector renderers for UFO and Corgi themes when running without external asset bundles. If you wish to provide custom PNG sprites, you can add them to the Xcode project as described below.
 
 ---
 

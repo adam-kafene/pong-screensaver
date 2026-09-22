@@ -1,6 +1,7 @@
 import ScreenSaver
 import Cocoa
 
+@objc(PongScreensaverView)
 class PongScreensaverView: ScreenSaverView {
     
     enum PuckType: Int {
@@ -9,55 +10,28 @@ class PongScreensaverView: ScreenSaverView {
         case corgi = 2
     }
     
-    // Shared container for multi-screen sync and user configuration
-    private let sharedDefaults = ScreenSaverDefaults(forModuleWithName: "com.example.PongScreensaver")
+    private let sharedDefaults = ScreenSaverDefaults(forModuleWithName: PongDefaults.moduleName)
     
     private var currentPuck: PuckType = .corgi
     private var ufoImage: NSImage?
     private var corgiImage: NSImage?
     
-    // Lazy UI configuration sheet container
+    // UI configuration sheet controller
     private var settingsController: PongSettingsController?
     
-    // Scaled positioning variables
+    // Dynamic dimensions & positions
     private var puckPosition = CGPoint.zero
     private var puckVelocity = CGPoint.zero
-    private var puckSize: CGFloat = 0.0
-    private var paddleWidth: CGFloat = 0.0
+    private var puckSize: CGFloat = 30.0
+    private var paddleWidth: CGFloat = 15.0
     private let paddlePadding: CGFloat = 40.0
-    private var paddleHeight: CGFloat = 0.0
+    private var paddleHeight: CGFloat = 90.0
     
     private var leftPaddleY: CGFloat = 0.0
     private var rightPaddleY: CGFloat = 0.0
     private var paddleSpeed: CGFloat = 0.0
     
-    private func setupGame() {
-        self.animationTimeInterval = 1.0 / 60.0
-        
-        // Dynamically scale parameters to look perfect on any screen size
-        puckSize = max(30.0, bounds.height * 0.05)
-        paddleWidth = max(15.0, bounds.width * 0.01)
-        paddleHeight = max(80.0, bounds.height * 0.15)
-        paddleSpeed = bounds.height * 0.012
-        
-        puckVelocity = CGPoint(x: bounds.width * 0.008, y: bounds.height * 0.008)
-        puckPosition = CGPoint(x: bounds.midX, y: bounds.midY)
-        leftPaddleY = bounds.midY
-        rightPaddleY = bounds.midY
-        
-        // Pre-cache icons securely to keep memory passes instant
-        ufoImage = NSImage(named: "ufo_icon")
-        corgiImage = NSImage(named: "corgi_icon")
-        
-        loadSavedConfiguration()
-    }
-    
-    func loadSavedConfiguration() {
-        if let savedSkin = sharedDefaults?.integer(forKey: "SelectedPuckSkin"),
-           let type = PuckType(rawValue: savedSkin) {
-            self.currentPuck = type
-        }
-    }
+    override var isOpaque: Bool { return true }
     
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
@@ -69,62 +43,120 @@ class PongScreensaverView: ScreenSaverView {
         setupGame()
     }
     
+    private func setupGame() {
+        self.animationTimeInterval = 1.0 / 60.0
+        
+        let bundle = Bundle(for: PongScreensaverView.self)
+        ufoImage = bundle.image(forResource: "ufo_icon")
+        corgiImage = bundle.image(forResource: "corgi_icon")
+        
+        loadSavedConfiguration()
+        updateDimensions()
+    }
+    
+    func loadSavedConfiguration() {
+        if let savedSkin = sharedDefaults?.integer(forKey: PongDefaults.selectedPuckSkin),
+           let type = PuckType(rawValue: savedSkin) {
+            self.currentPuck = type
+        }
+    }
+    
+    private func updateDimensions() {
+        guard bounds.width > 0 && bounds.height > 0 else { return }
+        
+        puckSize = max(24.0, bounds.height * 0.045)
+        paddleWidth = max(14.0, bounds.width * 0.012)
+        paddleHeight = max(70.0, bounds.height * 0.16)
+        paddleSpeed = max(4.0, bounds.height * 0.012)
+        
+        if leftPaddleY == 0 { leftPaddleY = bounds.midY }
+        if rightPaddleY == 0 { rightPaddleY = bounds.midY }
+        
+        leftPaddleY = max(paddleHeight / 2, min(bounds.height - paddleHeight / 2, leftPaddleY))
+        rightPaddleY = max(paddleHeight / 2, min(bounds.height - paddleHeight / 2, rightPaddleY))
+        
+        if puckPosition == .zero || puckVelocity == .zero {
+            resetPuck()
+        }
+    }
+    
+    private func resetPuck() {
+        puckPosition = CGPoint(x: bounds.midX - (puckSize / 2), y: bounds.midY - (puckSize / 2))
+        let speedX = max(4.0, bounds.width * 0.006)
+        let speedY = max(3.0, bounds.height * 0.005)
+        let dirX: CGFloat = Bool.random() ? 1.0 : -1.0
+        let dirY: CGFloat = Bool.random() ? 1.0 : -1.0
+        puckVelocity = CGPoint(x: speedX * dirX, y: speedY * dirY)
+    }
+    
+    override func startAnimation() {
+        super.startAnimation()
+        updateDimensions()
+        loadSavedConfiguration()
+    }
+    
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        updateDimensions()
+    }
+    
     override var hasConfigureSheet: Bool { return true }
     
     override var configureSheet: NSWindow? {
         if settingsController == nil {
             settingsController = PongSettingsController(parentSaver: self)
         }
-        _ = settingsController?.window
         return settingsController?.window
     }
     
     override func animateOneFrame() {
         super.animateOneFrame()
-        loadSavedConfiguration() // Live update skins if changed in settings panel
         
-        if isMasterScreen() {
-            puckPosition.x += puckVelocity.x
-            puckPosition.y += puckVelocity.y
-            
-            // Boundary collisions
-            if puckPosition.y <= 0 || puckPosition.y >= bounds.height - puckSize {
-                puckVelocity.y *= -1
-            }
-            
-            // Paddle Tracking Math
-            let targetLeftY = puckPosition.y + (puckSize / 2)
-            leftPaddleY += (targetLeftY > leftPaddleY) ? min(paddleSpeed, targetLeftY - leftPaddleY) : -min(paddleSpeed, leftPaddleY - targetLeftY)
-            
-            let targetRightY = puckPosition.y + (puckSize / 2)
-            rightPaddleY += (targetRightY > rightPaddleY) ? min(paddleSpeed, targetRightY - rightPaddleY) : -min(paddleSpeed, rightPaddleY - targetRightY)
-            
-            leftPaddleY = max(paddleHeight/2, min(bounds.height - paddleHeight/2, leftPaddleY))
-            rightPaddleY = max(paddleHeight/2, min(bounds.height - paddleHeight/2, rightPaddleY))
-            
-            // Physics Hitboxes
-            let leftPaddleRect = CGRect(x: paddlePadding, y: leftPaddleY - (paddleHeight / 2), width: paddleWidth, height: paddleHeight)
-            let rightPaddleRect = CGRect(x: bounds.width - paddlePadding - paddleWidth, y: rightPaddleY - (paddleHeight / 2), width: paddleWidth, height: paddleHeight)
-            let puckRect = CGRect(origin: puckPosition, size: CGSize(width: puckSize, height: puckSize))
-            
-            if (puckRect.intersects(leftPaddleRect) && puckVelocity.x < 0) || 
-               (puckRect.intersects(rightPaddleRect) && puckVelocity.x > 0) {
-                puckVelocity.x *= -1
-            }
-            
-            if puckPosition.x < 0 || puckPosition.x > bounds.width {
-                puckPosition = CGPoint(x: bounds.midX, y: bounds.midY)
-                puckVelocity.x *= -1 
-            }
-            
-            // Sync positions relative to screen dimensions across instances
-            sharedDefaults?.set(puckPosition.x / bounds.width, forKey: "NormalizedPuckX")
-            sharedDefaults?.set(puckPosition.y / bounds.height, forKey: "NormalizedPuckY")
-            sharedDefaults?.synchronize()
-        } else {
-            let normX = sharedDefaults?.double(forKey: "NormalizedPuckX") ?? 0.5
-            let normY = sharedDefaults?.double(forKey: "NormalizedPuckY") ?? 0.5
-            puckPosition = CGPoint(x: CGFloat(normX) * bounds.width, y: CGFloat(normY) * bounds.height)
+        guard bounds.width > 0 && bounds.height > 0 else { return }
+        
+        puckPosition.x += puckVelocity.x
+        puckPosition.y += puckVelocity.y
+        
+        // Top and bottom boundary collisions with clamping
+        if puckPosition.y <= 0 {
+            puckPosition.y = 0
+            puckVelocity.y = abs(puckVelocity.y)
+        } else if puckPosition.y >= bounds.height - puckSize {
+            puckPosition.y = bounds.height - puckSize
+            puckVelocity.y = -abs(puckVelocity.y)
+        }
+        
+        // Paddle Tracking
+        let targetLeftY = puckPosition.y + (puckSize / 2)
+        let leftDelta = targetLeftY - leftPaddleY
+        leftPaddleY += max(-paddleSpeed, min(paddleSpeed, leftDelta))
+        leftPaddleY = max(paddleHeight / 2, min(bounds.height - paddleHeight / 2, leftPaddleY))
+        
+        let targetRightY = puckPosition.y + (puckSize / 2)
+        let rightDelta = targetRightY - rightPaddleY
+        rightPaddleY += max(-paddleSpeed, min(paddleSpeed, rightDelta))
+        rightPaddleY = max(paddleHeight / 2, min(bounds.height - paddleHeight / 2, rightPaddleY))
+        
+        // Paddle Collisions
+        let leftPaddleRect = CGRect(x: paddlePadding, y: leftPaddleY - (paddleHeight / 2), width: paddleWidth, height: paddleHeight)
+        let rightPaddleRect = CGRect(x: bounds.width - paddlePadding - paddleWidth, y: rightPaddleY - (paddleHeight / 2), width: paddleWidth, height: paddleHeight)
+        let puckRect = CGRect(origin: puckPosition, size: CGSize(width: puckSize, height: puckSize))
+        
+        if puckRect.intersects(leftPaddleRect) && puckVelocity.x < 0 {
+            puckPosition.x = leftPaddleRect.maxX
+            puckVelocity.x = abs(puckVelocity.x)
+            let hitOffset = (puckPosition.y + (puckSize / 2) - leftPaddleY) / (paddleHeight / 2)
+            puckVelocity.y += hitOffset * (bounds.height * 0.003)
+        } else if puckRect.intersects(rightPaddleRect) && puckVelocity.x > 0 {
+            puckPosition.x = rightPaddleRect.minX - puckSize
+            puckVelocity.x = -abs(puckVelocity.x)
+            let hitOffset = (puckPosition.y + (puckSize / 2) - rightPaddleY) / (paddleHeight / 2)
+            puckVelocity.y += hitOffset * (bounds.height * 0.003)
+        }
+        
+        // Offscreen reset
+        if puckPosition.x < -puckSize || puckPosition.x > bounds.width {
+            resetPuck()
         }
         
         setNeedsDisplay(bounds)
@@ -134,12 +166,29 @@ class PongScreensaverView: ScreenSaverView {
         super.draw(rect)
         
         NSColor.black.set()
-        rect.fill() // Erases everything cleanly to prevent trails
+        bounds.fill()
         
+        drawCenterDivider()
         drawClassicPaddle(xPosition: paddlePadding, yCenter: leftPaddleY)
         drawClassicPaddle(xPosition: bounds.width - paddlePadding - paddleWidth, yCenter: rightPaddleY)
-        
         drawCustomPuck()
+    }
+    
+    private func drawCenterDivider() {
+        let dividerColor = NSColor(white: 1.0, alpha: 0.15)
+        dividerColor.set()
+        
+        let segmentHeight: CGFloat = 16.0
+        let gap: CGFloat = 12.0
+        let totalStep = segmentHeight + gap
+        let x = (bounds.width - 2.0) / 2.0
+        
+        var y: CGFloat = gap / 2.0
+        while y < bounds.height {
+            let segRect = CGRect(x: x, y: y, width: 2.0, height: min(segmentHeight, bounds.height - y))
+            NSBezierPath(rect: segRect).fill()
+            y += totalStep
+        }
     }
     
     private func drawCustomPuck() {
@@ -149,27 +198,67 @@ class PongScreensaverView: ScreenSaverView {
         case .classicBall:
             NSColor.white.set()
             NSBezierPath(ovalIn: puckRect).fill()
+            
         case .ufo:
-            if let ufo = ufoImage { ufo.draw(in: puckRect) }
-            else { drawFallbackShape(color: .systemGreen, in: puckRect) }
+            if let ufo = ufoImage {
+                ufo.draw(in: puckRect)
+            } else {
+                drawUFOFallback(in: puckRect)
+            }
+            
         case .corgi:
-            if let corgi = corgiImage { corgi.draw(in: puckRect) }
-            else { drawFallbackShape(color: .systemOrange, in: puckRect) }
+            if let corgi = corgiImage {
+                corgi.draw(in: puckRect)
+            } else {
+                drawCorgiFallback(in: puckRect)
+            }
         }
+    }
+    
+    private func drawUFOFallback(in rect: CGRect) {
+        // Saucer dome
+        let domeRect = CGRect(x: rect.minX + rect.width * 0.25, y: rect.minY + rect.height * 0.35, width: rect.width * 0.5, height: rect.height * 0.5)
+        NSColor.systemTeal.set()
+        NSBezierPath(ovalIn: domeRect).fill()
+        
+        // Saucer base disk
+        let diskRect = CGRect(x: rect.minX, y: rect.minY + rect.height * 0.15, width: rect.width, height: rect.height * 0.45)
+        NSColor.systemGreen.set()
+        NSBezierPath(ovalIn: diskRect).fill()
+    }
+    
+    private func drawCorgiFallback(in rect: CGRect) {
+        // Head
+        NSColor(calibratedRed: 0.92, green: 0.58, blue: 0.24, alpha: 1.0).set()
+        let headRect = CGRect(x: rect.minX + rect.width * 0.1, y: rect.minY + rect.height * 0.1, width: rect.width * 0.8, height: rect.height * 0.8)
+        NSBezierPath(ovalIn: headRect).fill()
+        
+        // Left Ear
+        let leftEar = NSBezierPath()
+        leftEar.move(to: CGPoint(x: rect.minX + rect.width * 0.15, y: rect.minY + rect.height * 0.65))
+        leftEar.line(to: CGPoint(x: rect.minX + rect.width * 0.05, y: rect.maxY))
+        leftEar.line(to: CGPoint(x: rect.minX + rect.width * 0.4, y: rect.minY + rect.height * 0.75))
+        leftEar.close()
+        leftEar.fill()
+        
+        // Right Ear
+        let rightEar = NSBezierPath()
+        rightEar.move(to: CGPoint(x: rect.minX + rect.width * 0.6, y: rect.minY + rect.height * 0.75))
+        rightEar.line(to: CGPoint(x: rect.maxX - rect.width * 0.05, y: rect.maxY))
+        rightEar.line(to: CGPoint(x: rect.maxX - rect.width * 0.15, y: rect.minY + rect.height * 0.65))
+        rightEar.close()
+        rightEar.fill()
+        
+        // Nose
+        NSColor.black.set()
+        let noseRect = CGRect(x: rect.midX - rect.width * 0.08, y: rect.minY + rect.height * 0.25, width: rect.width * 0.16, height: rect.height * 0.12)
+        NSBezierPath(ovalIn: noseRect).fill()
     }
     
     private func drawClassicPaddle(xPosition: CGFloat, yCenter: CGFloat) {
         NSColor.white.set()
         let paddleRect = CGRect(x: xPosition, y: yCenter - (paddleHeight / 2), width: paddleWidth, height: paddleHeight)
-        NSBezierPath(rect: paddleRect).fill()
-    }
-    
-    private func drawFallbackShape(color: NSColor, in rect: CGRect) {
-        color.set()
-        NSBezierPath(rect: rect).fill()
-    }
-    
-    private func isMasterScreen() -> Bool {
-        return self.frame.origin == CGPoint.zero
+        let path = NSBezierPath(roundedRect: paddleRect, xRadius: paddleWidth / 4, yRadius: paddleWidth / 4)
+        path.fill()
     }
 }
