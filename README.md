@@ -1,6 +1,6 @@
-# Multi-Screen Pong Clockless Screensaver
+# Multi-Screen Pong Screensaver
 
-A dynamic, multi-monitor retro Pong screensaver for macOS. Watch an AI-controlled match play out seamlessly across your connected displays. Features customizable puck skins including a UFO and a Corgi Puppy, with a clean frame-clearing engine that completely eliminates ghosting trails.
+A dynamic, multi-monitor retro Pong screensaver for macOS. Watch a match play out seamlessly across your connected displays. Features customizable puck skins including a UFO and a Corgi, with a clean frame-clearing engine that completely eliminates ghosting trails.
 
 ## Features
 - **Multi-Monitor Synchronization:** Syncs ball physics locally across multiple screens without system-wide network overhead.
