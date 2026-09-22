@@ -12,11 +12,11 @@ To build successfully, your local repository directory must be arranged exactly 
 
 - 📂 **Root Folder**
   - 📄 `README.md` (General user installation manual)
-  - 📄 `README_DEV.md` (This development file)
   - 📄 `LICENSE` (MIT Open-Source text)
   - 📄 `.gitignore` (Filters out local compilation junk files)
   - 📄 `PongScreensaver.xcodeproj` (Main Xcode project system engine launcher)
-  - 📂 **PongScreensaver/** (Primary source logic folder)
+  - 📂 **app/** (Primary source logic folder)
+    - 📄 `README.md` (This README file)
     - 📄 `Info.plist` (Plug-in architecture map declaring the Principal class to macOS)
     - 📄 `PongScreensaverView.swift` (Primary game engine and non-trail canvas logic)
     - 📄 `PongSettingsController.swift` (Preference dropdown management logic)
