@@ -1,5 +1,7 @@
 # Multi-Screen Pong Screensaver
 
+# work in progress - will not work yet
+
 A dynamic retro Pong screensaver for macOS. Features responsive dual-paddle AI, customizable puck skins including UFO and Corgi themes with built-in vector fallbacks, authentic center divider styling, and clean frame-clearing engine that completely eliminates ghosting trails.
 
 ## Features
